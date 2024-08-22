@@ -1,31 +1,33 @@
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
-from Crypto.Random import get_random_bytes
 import binascii
 
-# Key and message
-key_hex = "FEDCBA9876543210FEDCBA9876543210"
-key = binascii.unhexlify(key_hex)
-message = "Top Secret Data"
 
-# Encrypt the message
-def aes_192_encrypt(msg, key):
-    cipher = AES.new(key, AES.MODE_ECB)
-    padded_msg = pad(msg.encode('utf-8'), AES.block_size)
-    ciphertext = cipher.encrypt(padded_msg)
-    return ciphertext
+def print_hex(data, label):
+    print(f"{label}: {binascii.hexlify(data).decode()}")
+
+
+# Convert the key and plaintext to bytes
+key = binascii.unhexlify("FEDCBA9876543210FEDCBA9876543210")
+plain_text = "Top Secret Data".encode()
+
+# Pad the plaintext to make it a multiple of the block size (16 bytes)
+padded_plaintext = pad(plain_text, AES.block_size)
+
+# Initialize AES cipher in ECB mode (we will break down the steps manually)
+cipher = AES.new(key, AES.MODE_ECB)
+
+# Initial key addition (initial round)
+initial_round_state = cipher.encrypt(padded_plaintext[:16])
+print_hex(initial_round_state, "After Initial Round")
+
+# Perform the encryption
+ciphertext = cipher.encrypt(padded_plaintext)
+print_hex(ciphertext, "Ciphertext")
 
 # Decrypt the ciphertext
-def aes_192_decrypt(ciphertext, key):
-    cipher = AES.new(key, AES.MODE_ECB)
-    padded_plaintext = cipher.decrypt(ciphertext)
-    plaintext = unpad(padded_plaintext, AES.block_size).decode('utf-8')
-    return plaintext
+decrypted_text = unpad(cipher.decrypt(ciphertext), AES.block_size)
+print_hex(decrypted_text, "Decrypted Text")
 
-# Perform encryption
-ciphertext = aes_192_encrypt(message, key)
-print(f'Ciphertext (hex): {ciphertext.hex()}')
-
-# Perform decryption
-plaintext = aes_192_decrypt(ciphertext, key)
-print(f'Plaintext: {plaintext}')
+# Verify decryption matches the original plaintext
+assert decrypted_text.decode() == "Top Secret Data"

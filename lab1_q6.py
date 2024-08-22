@@ -1,60 +1,56 @@
-plaintext = "AB"
+import string
 
-def extended_gcd(a, b):
-    if a == 0:
-        return b, 0, 1
-    gcd, x1, y1 = extended_gcd(b % a, a)
-    x = y1 - (b // a) * x1
-    y = x1
-    return gcd, x, y
 
-def mod_inverse(a, m):
-    gcd, x, _ = extended_gcd(a, m)
-    if gcd != 1:
-        raise ValueError(f"No modular inverse for {a} mod {m}")
-    else:
-        return x % m
+def affine_decrypt(ciphertext, a, b):
+    alphabet = string.ascii_uppercase
+    m = len(alphabet)
+    a_inv = pow(a, -1, m)
+    if a_inv is None:
+        return None
 
-def brute_force_affine(ciphertext, plaintext_sample):
-    """Brute force to find the correct affine cipher keys given ciphertext and a sample plaintext."""
-    for a in range(1, 26):
-        gcd, x, y = extended_gcd(a, 26) 
-        if gcd != 1:
-            continue  # 'a' must be coprime with 26
-        for b in range(26):
-            # Test current (a, b)
-            decrypted_sample = affine_decrypt(plaintext_sample, (a, b))
-            if decrypted_sample == plaintext_sample:
-                # If the sample plaintext matches, print the result
-                print(f"Possible keys found: a = {a}, b = {b}")
-                return a, b
-    print("No valid keys found.")
-    return None, None
-
-def affine_decrypt(ciphertext: str, key: tuple):
-    a = key[0]
-    b = key[1]
-
-    decrypted_txt = ""
-
-    a_mod_inv = mod_inverse(a, 26)
-
-    for c in ciphertext:
-
-        if c == " ":
-            shifted_c = " "
-        elif c.isupper():
-            shifted_c = chr((((ord(c) - ord('A') - b) * a_mod_inv) % 26) + ord('A')) 
+    plaintext = ""
+    for char in ciphertext:
+        if char in alphabet:
+            y = alphabet.index(char)
+            x = (a_inv * (y - b)) % m
+            plaintext += alphabet[x]
         else:
-            shifted_c = chr((((ord(c) - ord('a') - b) * a_mod_inv) % 26) + ord('a'))
-        
-        decrypted_txt += shifted_c
+            plaintext += char
 
-    return decrypted_txt
+    return plaintext
 
-dec = affine_decrypt(ciphertext="XPALASXYFGFUKPXUSOGEUTKCDGEXANMGNVS", key=(5,6))
-print(dec)
 
+def brute_force_affine(ciphertext, known_plaintext, known_ciphertext):
+    alphabet = string.ascii_uppercase
+    m = len(alphabet)
+
+    for a in range(1, m):
+        for b in range(m):
+            decrypted_text = affine_decrypt(known_ciphertext, a, b)
+            if decrypted_text == known_plaintext.upper():
+                return a, b
+
+    return None
+
+
+# Given ciphertext and known plaintext-ciphertext pair
 ciphertext = "XPALASXYFGFUKPXUSOGEUTKCDGEXANMGNVS"
-plaintext_sample = "GL"  # From the given information, "ab" encodes to "GL"
-brute_force_affine(ciphertext, plaintext_sample)
+known_plaintext = "ab"
+known_ciphertext = "GL"
+
+# Brute force to find the correct keys
+a, b = brute_force_affine(ciphertext, known_plaintext, known_ciphertext)
+
+# Decrypt the full ciphertext using the found keys
+if a is not None and b is not None:
+    plaintext = affine_decrypt(ciphertext, a, b)
+    print(f"Found keys: a = {a}, b = {b}")
+    print(f"Decrypted plaintext: {plaintext}")
+else:
+    print("No valid keys found.")
+
+"""
+OUTPUT:
+Found keys: a = 11, b = 6
+Decrypted plaintext: TECHNOLOGYISAUSEFULSERVANTBUTADANGEROUSMASTER
+"""

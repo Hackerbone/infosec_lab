@@ -1,60 +1,45 @@
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from binascii import hexlify, unhexlify
 
-def generate_rsa_keys(bits=2048):
-    # Generate RSA key pair
-    key = RSA.generate(bits)
-    
-    # Extract public and private keys
-    public_key = key.publickey()
-    private_key = key
-    
-    # Export keys in PEM format for example
-    public_key_pem = public_key.export_key().decode('utf-8')
-    private_key_pem = private_key.export_key().decode('utf-8')
-    
-    # Extract n, e, d values
-    n = key.n
-    e = key.e
-    d = key.d
-    
-    return public_key_pem, private_key_pem, n, e, d
 
-def rsa_encrypt(message, n, e):
-    # Create RSA key object from n and e
-    key = RSA.construct((n, e))
-    cipher = PKCS1_OAEP.new(key)
-    
-    # Encrypt the message
-    ciphertext = cipher.encrypt(message.encode('utf-8'))
-    return ciphertext
+# Function to generate RSA keys
+def generate_rsa_keys():
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
+    return key, private_key, public_key
 
-def rsa_decrypt(ciphertext, n, d):
-    # Create RSA key object from n and d
-    key = RSA.construct((n, 65537, d))  # 65537 is the common public exponent
-    cipher = PKCS1_OAEP.new(key)
-    
-    # Decrypt the message
-    decrypted_message = cipher.decrypt(ciphertext).decode('utf-8')
-    return decrypted_message
+
+# Function to encrypt the message using RSA public key
+def rsa_encrypt(plain_text, public_key):
+    rsa_key = RSA.import_key(public_key)
+    cipher = PKCS1_OAEP.new(rsa_key)
+    cipher_text = cipher.encrypt(plain_text.encode())
+    return hexlify(cipher_text).decode()
+
+
+# Function to decrypt the ciphertext using RSA private key
+def rsa_decrypt(cipher_text, private_key):
+    rsa_key = RSA.import_key(private_key)
+    cipher = PKCS1_OAEP.new(rsa_key)
+    decrypted_text = cipher.decrypt(unhexlify(cipher_text))
+    return decrypted_text.decode()
+
 
 # Generate RSA keys
-public_key_pem, private_key_pem, n, e, d = generate_rsa_keys()
+key, private_key, public_key = generate_rsa_keys()
 
-print("Public Key:")
-print(public_key_pem)
-print()
-print("Private Key:")
-print(private_key_pem)
-print()
-print("Modulus (n):", n)
-print("Public Exponent (e):", e)
-print("Private Exponent (d):", d)
+# Message to encrypt
+plain_text = "Asymmetric Encryption"
 
-# Example usage
-message = "Asymmetric Encryption"
-ciphertext = rsa_encrypt(message, n, e)
-print(f"Ciphertext (bytes): {ciphertext}")
+# Encrypt the message using the public key
+cipher_text = rsa_encrypt(plain_text, public_key)
+print(f"Ciphertext: {cipher_text}")
 
-decrypted_message = rsa_decrypt(ciphertext, n, d)
-print(f"Decrypted message: {decrypted_message}")
+# Decrypt the ciphertext using the private key
+decrypted_text = rsa_decrypt(cipher_text, private_key)
+print(f"Decrypted text: {decrypted_text}")
+
+# Verify if the original message is recovered
+assert decrypted_text == plain_text
