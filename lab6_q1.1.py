@@ -38,3 +38,10 @@ decrypted_message = elgamal_decrypt(cipher_text, key)
 print("Original message:", message)
 print("Encrypted message:", cipher_text)
 print("Decrypted message:", decrypted_message)
+
+"""
+Output:
+Original message: 4441
+Encrypted message: (36885507269050816452521241110201113994024314479158945324704607565400925974332, 84005621770667733674079560558995776817276579165352124261201821962284727224889)
+Decrypted message: 4441
+"""
