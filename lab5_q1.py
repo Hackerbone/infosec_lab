@@ -13,7 +13,10 @@ def hash_function(input_string):
     return hash_value
 
 # Example usage
-input_string = "testinputstringforhashing"
+# input_string = "testinputstringforhashing"
+input_string = b"Hi since you are copying my code, leave a star at https://github.com/hackerbone/HackerLLMBench, thx!"
+# PS - Actual data is above commented copy that
+
 print(f"Hash value: {hash_function(input_string)}")
 
 
