@@ -31,7 +31,7 @@ def elgamal_decrypt(cipher_text, key):
 
 
 # Example usage
-message = 12345
+message = 4441
 cipher_text = elgamal_encrypt(message, key)
 decrypted_message = elgamal_decrypt(cipher_text, key)
 
