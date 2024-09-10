@@ -1,29 +1,33 @@
 from Crypto.PublicKey import ElGamal
-from Crypto.Random import random
+from Crypto.Random import get_random_bytes
+from Crypto.Random.random import randint
 from Crypto.Util.number import GCD
 
 # Key Generation
-key = ElGamal.generate(256, random.get_random_bytes)
-public_key = (key.p, key.g, key.y)
-private_key = key.x
+key = ElGamal.generate(256, get_random_bytes)
+public_key = (int(key.p), int(key.g), int(key.y))  # Ensure all are integers
+private_key = int(key.x)  # Ensure the private key is an integer
 
 
 # Encryption
 def elgamal_encrypt(message, key):
-    k = random.StrongRandom().randint(1, key.p - 1)
-    while GCD(k, key.p - 1) != 1:
-        k = random.StrongRandom().randint(1, key.p - 1)
-    c1 = pow(key.g, k, key.p)
-    c2 = (message * pow(key.y, k, key.p)) % key.p
+    p, g, y = int(key.p), int(key.g), int(key.y)  # Convert to native Python integers
+    k = randint(1, p - 2)
+    while GCD(k, p - 1) != 1:
+        k = randint(1, p - 2)
+    c1 = pow(g, k, p)
+    c2 = (message * pow(y, k, p)) % p
     return (c1, c2)
 
 
 # Decryption
 def elgamal_decrypt(cipher_text, key):
     c1, c2 = cipher_text
-    s = pow(c1, key.x, key.p)
-    s_inv = pow(s, -1, key.p)  # Modular inverse
-    return (c2 * s_inv) % key.p
+    p = int(key.p)  # Convert to native Python integer
+    s = pow(c1, int(key.x), p)  # Convert to native Python integers
+    # Use pow to compute the modular inverse
+    s_inv = pow(s, p - 2, p)  # Fermat's Little Theorem
+    return (c2 * s_inv) % p
 
 
 # Example usage
