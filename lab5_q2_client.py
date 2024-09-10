@@ -33,3 +33,9 @@ def start_client(server_host='127.0.0.1', server_port=65432):
 
 if __name__ == "__main__":
     start_client()
+
+
+"""
+Output:
+Data integrity verified. No corruption or tampering detected.
+"""

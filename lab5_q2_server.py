@@ -35,3 +35,12 @@ def start_server(host='127.0.0.1', port=65432):
 
 if __name__ == "__main__":
     start_server()
+
+
+"""
+Output:
+
+Server listening on 127.0.0.1:65432
+Accepted connection from ('127.0.0.1', 54321)
+
+"""
