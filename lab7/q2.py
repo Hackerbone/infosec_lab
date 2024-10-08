@@ -1,6 +1,4 @@
 from Crypto.PublicKey import RSA
-from Crypto.Random import get_random_bytes
-from Crypto.Util.number import inverse
 
 def generate_keypair(nlength=1024):
     """Generates a public/private key pair"""

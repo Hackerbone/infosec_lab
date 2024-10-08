@@ -23,8 +23,8 @@ def decrypt(private_key, public_key, ciphertext):
     n, _ = public_key
     lambda_n, mu = private_key
     u = pow(ciphertext, lambda_n, n * n)
-    l = (u - 1) // n
-    message = (l * mu) % n
+    low = (u - 1) // n
+    message = (low * mu) % n
     return message
 
 def main():
