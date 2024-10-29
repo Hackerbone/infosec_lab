@@ -1,9 +1,8 @@
 from Crypto.PublicKey import ECC
 from Crypto.Signature import DSS
 from Crypto.Hash import SHA256, SHA1, SHA512
-from Crypto.Cipher import PKCS1_OAEP
-from Crypto.Random import get_random_bytes
-
+from Crypto.Cipher import AES
+from Crypto.Protocol.KDF import scrypt
 
 # Generate ECC key pair
 def generate_ecc_key_pair(curve="P-256"):
@@ -14,9 +13,7 @@ def generate_ecc_key_pair(curve="P-256"):
 
 # ECC Digital Signature Creation
 def ecc_sign(private_key, message):
-    hash_obj = SHA256.new(
-        message
-    )  # You can switch between SHA1, SHA256, or SHA512 based on needs
+    hash_obj = SHA256.new(message)
     signer = DSS.new(private_key, "fips-186-3")
     signature = signer.sign(hash_obj)
     return signature
@@ -24,9 +21,7 @@ def ecc_sign(private_key, message):
 
 # ECC Digital Signature Verification
 def ecc_verify(public_key, message, signature):
-    hash_obj = SHA256.new(
-        message
-    )  # You can switch between SHA1, SHA256, or SHA512 based on needs
+    hash_obj = SHA256.new(message)
     verifier = DSS.new(public_key, "fips-186-3")
     try:
         verifier.verify(hash_obj, signature)
@@ -35,19 +30,39 @@ def ecc_verify(public_key, message, signature):
         return False
 
 
-# ECC Encryption is not standard in ECC (used for digital signatures mainly)
-# However, you can use hybrid encryption with ECC for encrypting session keys
+# Hybrid Encryption using ECC and AES
 def ecc_encrypt(public_key, plaintext):
-    session_key = get_random_bytes(32)  # AES session key
-    cipher_rsa = PKCS1_OAEP.new(public_key)
-    ciphertext = cipher_rsa.encrypt(session_key)
-    return ciphertext
+    # Generate ephemeral ECC key pair
+    ephemeral_key = ECC.generate(curve="P-256")
+
+    # Derive shared secret from ephemeral private key and recipient's public key
+    shared_secret = ephemeral_key.d * public_key.pointQ
+
+    # Derive AES key from the shared secret
+    shared_key = scrypt(
+        str(shared_secret.x).encode(), salt=b"ecc_salt", key_len=32, N=2**14, r=8, p=1
+    )
+
+    # AES Encryption
+    cipher_aes = AES.new(shared_key, AES.MODE_GCM)
+    ciphertext, tag = cipher_aes.encrypt_and_digest(plaintext)
+
+    # Return the ephemeral public key along with ciphertext, nonce, and tag
+    return ephemeral_key.public_key(), cipher_aes.nonce, tag, ciphertext
 
 
-# ECC Decryption with hybrid encryption
-def ecc_decrypt(private_key, ciphertext):
-    cipher_rsa = PKCS1_OAEP.new(private_key)
-    plaintext = cipher_rsa.decrypt(ciphertext)
+def ecc_decrypt(private_key, ephemeral_public_key, nonce, tag, ciphertext):
+    # Derive shared secret from recipient's private key and ephemeral public key
+    shared_secret = private_key.d * ephemeral_public_key.pointQ
+
+    # Derive AES key from the shared secret
+    shared_key = scrypt(
+        str(shared_secret.x).encode(), salt=b"ecc_salt", key_len=32, N=2**14, r=8, p=1
+    )
+
+    # AES Decryption
+    cipher_aes = AES.new(shared_key, AES.MODE_GCM, nonce=nonce)
+    plaintext = cipher_aes.decrypt_and_verify(ciphertext, tag)
     return plaintext
 
 

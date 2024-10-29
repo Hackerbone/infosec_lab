@@ -1,130 +1,85 @@
-from Crypto.Util.number import getPrime, bytes_to_long, long_to_bytes, inverse
-import random
-from hashlib import sha256
-from math import gcd
+from Crypto.Util import number
 
 
-# Rabin Key Generation
-def rabin_keygen(bits=512):
-    # Generate two large primes p and q
-    p = getPrime(bits)
-    q = getPrime(bits)
+class Rabin:
+    def __init__(self, bit_length=512):
+        self.bit_length = bit_length
+        self.public_key, self.private_key = self.generate_keypair(bit_length)
 
-    # Public key is n = p * q
-    n = p * q
+    def generate_keypair(self, bit_length):
+        p = self.generate_prime(bit_length // 2)
+        q = self.generate_prime(bit_length // 2)
+        n = p * q  # Public key modulus
+        return n, (p, q)
 
-    # Private key is (p, q)
-    private_key = (p, q)
+    def generate_prime(self, bits):
+        while True:
+            p = number.getPrime(bits)
+            if p % 4 == 3:
+                return p
 
-    return n, private_key
+    def encrypt(self, message):
+        n = self.public_key
+        ciphertext = pow(message, 2, n)
+        return ciphertext
 
+    def decrypt(self, ciphertext):
+        p, q = self.private_key
+        mp = pow(ciphertext, (p + 1) // 4, p)
+        mq = pow(ciphertext, (q + 1) // 4, q)
 
-# Rabin Encryption
-def rabin_encrypt(public_key, message):
-    n = public_key
-    m = bytes_to_long(message.encode())
-    if m >= n:
-        raise ValueError("Message is too large for the modulus n")
+        gcd, yp, yq = self.egcd(p, q)
+        r1 = (yp * p * mq + yq * q * mp) % self.public_key
+        r2 = self.public_key - r1
+        r3 = (yp * p * mq - yq * q * mp) % self.public_key
+        r4 = self.public_key - r3
 
-    # Ciphertext c = m^2 mod n
-    ciphertext = pow(m, 2, n)
-    return ciphertext
+        return r1, r2, r3, r4
 
+    def egcd(self, a, b):
+        x0, x1, y0, y1 = 1, 0, 0, 1
+        while b != 0:
+            q, a, b = a // b, b, a % b
+            x0, x1 = x1, x0 - q * x1
+            y0, y1 = y1, y0 - q * y1
+        return a, x0, y0
 
-# Rabin Decryption (improved to pick the correct root based on hashing)
-def rabin_decrypt(private_key, public_key, ciphertext):
-    p, q = private_key
-    n = public_key
+    def int_to_bytes(self, number):
+        return number.to_bytes((number.bit_length() + 7) // 8, byteorder="big")
 
-    # Compute mp = c^(p+1)/4 mod p and mq = c^(q+1)/4 mod q
-    mp = pow(ciphertext, (p + 1) // 4, p)
-    mq = pow(ciphertext, (q + 1) // 4, q)
-
-    # Use the Chinese Remainder Theorem (CRT) to find the four possible values of m
-    def chinese_remainder_theorem(p, q, mp, mq):
-        q_inv = inverse(q, p)
-        m1 = (mp + p * (q_inv * (mq - mp) % p)) % (p * q)
-        m2 = (p * q - m1) % (p * q)
-        m3 = (mq + q * (inverse(p, q) * (mp - mq) % q)) % (p * q)
-        m4 = (p * q - m3) % (p * q)
-        return [m1, m2, m3, m4]
-
-    possible_m = chinese_remainder_theorem(p, q, mp, mq)
-
-    # Compare the hash of each possible root with the ciphertext hash to find the correct message
-    for m in possible_m:
-        try:
-            decrypted_message = long_to_bytes(m).decode("utf-8", errors="ignore")
-
-            # Re-encrypt the decrypted message to check if it matches the original ciphertext
-            if pow(m, 2, n) == ciphertext:
-                return decrypted_message  # Return the correct message
-        except UnicodeDecodeError:
-            continue  # Skip invalid roots
-
-    raise ValueError("Failed to find valid decrypted message.")
+    def bytes_to_int(self, data):
+        return int.from_bytes(data, byteorder="big")
 
 
-# Rabin Digital Signature Generation
-def rabin_sign(private_key, message, public_key):
-    n = public_key
-    p, q = private_key
-
-    # Hash the message to a number m
-    m = bytes_to_long(sha256(message.encode()).digest())
-
-    # Ensure that m is a quadratic residue mod n
-    if gcd(m, n) != 1:
-        raise ValueError("Message hash is not coprime with modulus")
-
-    # Signature s = sqrt(m) mod n (one of the four possible roots)
-    s = pow(m, (p + 1) // 4, p)  # Can also be computed via Chinese Remainder Theorem
-    return s
-
-
-# Rabin Digital Signature Verification
-def rabin_verify(public_key, message, signature):
-    n = public_key
-
-    # Hash the message to a number m
-    m = bytes_to_long(sha256(message.encode()).digest())
-
-    # Verify that signature^2 == m mod n
-    return pow(signature, 2, n) == m
-
-
-# Helper functions to export keys
-def export_private_key(private_key):
-    p, q = private_key
-    with open("rabin_private_key.txt", "w") as f:
-        f.write(f"{p},{q}")
-
-
-def export_public_key(public_key):
-    with open("rabin_public_key.txt", "w") as f:
-        f.write(str(public_key))
-
-
-# Example Usage of Rabin Cryptosystem
 if __name__ == "__main__":
-    public_key, private_key = rabin_keygen()
+    rabin = Rabin()
+    message = b"Hello, world!"
 
-    print(f"Public key: {public_key}")
-    print(f"Private key: {private_key}")
+    # Convert message to an integer for encryption
+    message_int = rabin.bytes_to_int(message)
+    ciphertext = rabin.encrypt(message_int)
+    plaintexts = rabin.decrypt(ciphertext)
 
-    # Encrypt a message
-    message = "HelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHelloHello"
-    ciphertext = rabin_encrypt(public_key, message)
+    print(f"Message (original): {message}")
     print(f"Ciphertext: {ciphertext}")
 
-    # Decrypt the ciphertext
-    decrypted_message = rabin_decrypt(private_key, public_key, ciphertext)
-    print(f"Decrypted message: {decrypted_message}")
+    # Find the correct plaintext by directly comparing with the original message
+    found_match = False
+    for i, plaintext in enumerate(plaintexts):
+        # Convert the plaintext integer back to bytes
+        plaintext_bytes = rabin.int_to_bytes(plaintext)
 
-    # Sign a message
-    signature = rabin_sign(private_key, message, public_key)
-    print(f"Signature: {signature}")
+        # Debug output for each possible plaintext
+        print(f"Plaintext option {i + 1}: {plaintext}")
+        print(f"Plaintext bytes (decoded): {plaintext_bytes}")
 
-    # Verify the signature
-    verification = rabin_verify(public_key, message, signature)
-    print(f"Signature valid: {verification}")
+        # Check if this matches the original message
+        if plaintext_bytes == message:
+            print(
+                f"Decrypted message (matching): {plaintext_bytes.decode(errors='ignore')}"
+            )
+            found_match = True
+            break
+
+    if not found_match:
+        print("No matching decrypted message found.")
