@@ -20,6 +20,11 @@ The client signs the encrypted vote usingt their RSA private key, generating a d
 the client sends the encrypted vote and the digital signature to the server
 
 
+Server Side:
+1. Server receieves encrypted vote and signature
+2. Signature verification using RSA
+3. After verification use XOR to combine and calc final result (Homomorphic)
+4. Send tally back to client
 """
 
 
